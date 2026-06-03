@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Meridian University — Network Auth Hardening Simulation (Network+ 12.4 / 13.2)</title>
+<title>Professor Martin's Network Security Adventure — Network+ Simulation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -338,12 +338,89 @@
 
   .small-note { font-size: 0.78rem; color: var(--text-dim); margin-top: 0.6rem; }
   .kbd { font-family: var(--mono); background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 0.05rem 0.4rem; font-size: 0.8rem; }
+
+  /* ── Splash screen ── */
+  #screen-splash { background: var(--bg); }
+  .splash-wrap { max-width: 680px; width: 100%; text-align: center; padding: 3rem 1rem 2rem; }
+  .splash-kicker { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 1rem; }
+  .splash-title { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; line-height: 1.15; margin-bottom: 1rem; }
+  .splash-title span { color: var(--accent); }
+  .splash-sub { font-size: 1rem; color: var(--text-muted); margin-bottom: 2.5rem; }
+  .rules-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; text-align: left; margin-bottom: 2rem; }
+  .rule-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.3rem; }
+  .rule-card .rule-icon { font-size: 1.4rem; margin-bottom: 0.5rem; }
+  .rule-card strong { display: block; font-size: 0.88rem; color: var(--text); margin-bottom: 0.25rem; }
+  .rule-card p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.55; margin: 0; }
+  .rule-card.warn-card { border-color: var(--warn); }
+  .rule-card.warn-card strong { color: var(--warn); }
+  .splash-btn { font-size: 1.05rem; padding: 0.85rem 2.5rem; }
+  .splash-footer { margin-top: 1.5rem; font-size: 0.75rem; color: var(--text-dim); }
+
+  /* ── Hint system ── */
+  .hint-row { display: flex; align-items: flex-start; gap: 0.75rem; margin: 0.5rem 0 1rem; flex-wrap: wrap; }
+  .hint-btn {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 20px; color: var(--text-muted);
+    font-family: var(--font); font-size: 0.78rem; font-weight: 600;
+    padding: 0.3rem 0.8rem; cursor: pointer; white-space: nowrap;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .hint-btn:hover:not(:disabled) { border-color: var(--warn); color: var(--warn); }
+  .hint-btn:disabled { opacity: 0.45; cursor: default; }
+  .hint-btn.paid { border-color: rgba(218,54,51,0.5); color: var(--wrong); }
+  .hint-callout {
+    display: none; background: rgba(210,153,34,0.07); border: 1px solid rgba(210,153,34,0.35);
+    border-radius: var(--radius); padding: 0.6rem 0.9rem;
+    font-size: 0.84rem; color: var(--text-muted); line-height: 1.55; flex: 1; min-width: 200px;
+  }
+  .hint-callout.visible { display: block; }
+  .hint-cost { color: var(--wrong); font-weight: 700; margin-left: 0.25rem; }
+
+  /* HUD hint counter */
+  #hudHints { color: var(--warn); }
+  #hudHints.depleted { color: var(--wrong); }
 </style>
 </head>
 <body>
 
+<!-- ════════════════ SPLASH SCREEN ════════════════ -->
+<div id="screen-splash" class="screen active">
+  <div class="splash-wrap">
+    <div class="splash-kicker">Professor Martin's &nbsp;•&nbsp; Network+ Modules 12.4 &amp; 13.2</div>
+    <h1 class="splash-title">Network Security<br><span>Adventure</span></h1>
+    <p class="splash-sub">A hands-on cybersecurity simulation where your decisions have real consequences.<br>Run real commands. Break things. Fix them. Graduate.</p>
+
+    <div class="rules-grid">
+      <div class="rule-card">
+        <div class="rule-icon">🖥️</div>
+        <strong>Real Lab Work</strong>
+        <p>You'll run actual terminal commands — <code>openssl</code>, <code>grep</code>, <code>radtest</code>, <code>nmap</code> — and fill in real configuration files. This is not a quiz.</p>
+      </div>
+      <div class="rule-card warn-card">
+        <div class="rule-icon">🔒</div>
+        <strong>Answers Are Final</strong>
+        <p>Once you submit a decision, run a terminal task, or classify an alert, it is locked. There is no going back. Think before you act.</p>
+      </div>
+      <div class="rule-card">
+        <div class="rule-icon">💡</div>
+        <strong>Hints: 3 Free</strong>
+        <p>Every scenario has a hint button. Your first 3 hints are free. After that, each hint costs 1 point from your final score — use them wisely.</p>
+      </div>
+      <div class="rule-card">
+        <div class="rule-icon">📊</div>
+        <strong>Your Debrief Is Your Grade</strong>
+        <p>At the end you'll receive a full report tied to your name. Screenshot it — that's your submission. No data is saved to your browser.</p>
+      </div>
+    </div>
+
+    <button class="btn splash-btn" id="splashStartBtn">Start the Simulation →</button>
+    <p class="splash-footer">Meridian University &nbsp;•&nbsp; IT Security Operations &nbsp;•&nbsp; Fall Semester Onboarding</p>
+  </div>
+</div>
+
 <!-- ════════════════ ENTRY SCREEN ════════════════ -->
-<div id="screen-entry" class="screen active">
+<div id="screen-entry" class="screen">
   <div class="container">
     <div class="logo-hero">
       <span class="badge">Network+ &nbsp;•&nbsp; Modules 12.4 &amp; 13.2</span>
@@ -378,10 +455,11 @@
         <h3>Academic Integrity &amp; Honor Pledge</h3>
         <p>This simulation is your individual work for credit. By proceeding you affirm that:</p>
         <ul>
-          <li>The decisions and commands you enter are your own.</li>
-          <li>You will not share answers or screenshots of solutions with other students.</li>
-          <li>You understand the final debrief is a graded artifact tied to your name.</li>
+          <li>The decisions and commands you enter are your own independent work.</li>
+          <li>You will not share answers, walkthroughs, or screenshots of solution steps with other students.</li>
+          <li>You understand the final debrief report is a graded artifact tied to your name.</li>
         </ul>
+        <p style="margin-top:0.7rem;"><strong style="color:var(--warn)">Simulation rules:</strong> Answers are final — once submitted, you cannot go back or reset. You have <strong>3 free hints</strong> available across the entire simulation. Hints beyond 3 cost 1 point each from your final score.</p>
       </div>
 
       <div class="check-row">
@@ -402,11 +480,12 @@
 <div id="screen-game" class="screen">
   <div class="container">
     <div class="top-bar">
-      <div class="logo">MERIDIAN U • NETOPS<small>Secure Semester Simulation</small></div>
+      <div class="logo">PROFESSOR MARTIN'S<small>Network Security Adventure</small></div>
       <div class="meta">
         <span>Operator: <b id="hudName">—</b></span>
         <span>Scene: <b id="hudScene">—</b></span>
         <span>Time: <b id="hudTimer">00:00</b></span>
+        <span>Hints: <b id="hudHints">3 free</b></span>
       </div>
     </div>
     <div class="scene-progress"><div id="progressFill"></div></div>
@@ -442,6 +521,12 @@ const gameState = {
 const records = {};       // sceneId -> { type, score, maxScore, detail }
 let decisionCount = 0;
 let sceneVisitOrder = [];
+
+// Hint tracking
+let hintsUsed = 0;
+let hintPenalty = 0;
+const usedHintScenes = new Set();
+const FREE_HINTS = 3;
 
 // Ordered list of "main" scenes for the scene counter (consequence scenes excluded)
 const MAIN_SCENES = ["T1","S2","T3","T4","T5","T6","S7","T8","T9","T10","S11","T12","S13","T14","S15"];
@@ -493,6 +578,10 @@ document.getElementById("startBtn").addEventListener("click", () => {
   player.fullName = player.first + " " + player.last;
   document.getElementById("hudName").textContent = player.fullName;
 
+  // Reset hint counters for a fresh run
+  hintsUsed = 0; hintPenalty = 0; usedHintScenes.clear();
+  updateHudHints();
+
   startTime = Date.now();
   timerInterval = setInterval(() => {
     document.getElementById("hudTimer").textContent = fmtTime(Math.floor((Date.now()-startTime)/1000));
@@ -503,9 +592,45 @@ document.getElementById("startBtn").addEventListener("click", () => {
 });
 
 function showScreen(name) {
-  ["entry","game","debrief"].forEach(s => document.getElementById("screen-"+s).classList.remove("active"));
+  ["splash","entry","game","debrief"].forEach(s => document.getElementById("screen-"+s).classList.remove("active"));
   document.getElementById("screen-"+name).classList.add("active");
   window.scrollTo(0,0);
+}
+
+/* ── Splash → Entry ── */
+document.getElementById("splashStartBtn").addEventListener("click", () => showScreen("entry"));
+
+/* ── Hint system ── */
+function updateHudHints() {
+  const el = document.getElementById("hudHints");
+  if (!el) return;
+  const free = FREE_HINTS - hintsUsed;
+  if (free > 0) {
+    el.textContent = free + " free";
+    el.classList.remove("depleted");
+  } else {
+    el.textContent = "−" + hintPenalty + " pts";
+    el.classList.add("depleted");
+  }
+}
+
+function useHint(text, sceneId) {
+  if (usedHintScenes.has(sceneId)) return;
+  usedHintScenes.add(sceneId);
+  hintsUsed++;
+  const isPaid = hintsUsed > FREE_HINTS;
+  if (isPaid) hintPenalty++;
+  updateHudHints();
+
+  const box = document.getElementById("hint-box-" + sceneId);
+  const btn = document.getElementById("hint-btn-" + sceneId);
+  if (box) {
+    box.innerHTML = (isPaid
+      ? "💡 <strong>Hint</strong><span class='hint-cost'> (−1 pt)</span>: "
+      : "💡 <strong>Hint</strong>: ") + esc(text);
+    box.classList.add("visible");
+  }
+  if (btn) btn.disabled = true;
 }
 
 function updateHud(sceneId) {
@@ -544,6 +669,24 @@ function sceneCard(scene, bodyNodes) {
   if (scene.narrative) {
     const n = el("div", { class: "narrative", html: scene.narrative });
     card.appendChild(n);
+  }
+  // Hint button — appears on every scene that has a hint
+  if (scene.hint) {
+    const hintRow = el("div", { class: "hint-row" });
+    const freeLeft = FREE_HINTS - hintsUsed;
+    const isPaid = freeLeft <= 0;
+    const alreadyUsed = usedHintScenes.has(scene.id);
+    const btn = el("button", {
+      class: "hint-btn" + (isPaid ? " paid" : ""),
+      id: "hint-btn-" + scene.id,
+      title: alreadyUsed ? "Hint already used" : (freeLeft > 0 ? freeLeft + " free hint(s) remaining" : "Hint costs 1 point")
+    }, isPaid ? "💡 Hint (−1 pt)" : "💡 Hint");
+    if (alreadyUsed) btn.disabled = true;
+    btn.onclick = () => useHint(scene.hint, scene.id);
+    const box = el("div", { class: "hint-callout", id: "hint-box-" + scene.id });
+    hintRow.appendChild(btn);
+    hintRow.appendChild(box);
+    card.appendChild(hintRow);
   }
   (Array.isArray(bodyNodes) ? bodyNodes : [bodyNodes]).forEach(b => b && card.appendChild(b));
   return card;
@@ -982,55 +1125,43 @@ function renderSequence(scene, mount) {
   });
 
   const btnRow = el("div", { class: "btn-row" });
-  const resetBtn = el("button", { class: "btn secondary" }, "Reset Order");
   const contBtn = el("button", { class: "btn", disabled: "true" }, "Continue →");
-  btnRow.appendChild(resetBtn);
   btnRow.appendChild(contBtn);
-
-  resetBtn.addEventListener("click", () => {
-    if (solved) return;
-    picks.length = 0;
-    nodeEls.forEach(nd => { nd.classList.remove("picked","wrong-seq","correct-seq"); nd.querySelector(".seq-badge").textContent = ""; });
-    result.className = "consequence";
-  });
 
   function checkOrder() {
     attempts++;
+    // Lock all nodes immediately — no retry
+    nodeEls.forEach(nd => nd.style.pointerEvents = "none");
+    solved = true;
+
     const correct = picks.every((origIdx, pos) => origIdx === pos);
+    // Always show the correct flow diagram
+    flow.innerHTML = "";
+    scene.nodes.forEach((n, idx) => {
+      flow.appendChild(el("div", { class: "flow-step" }, [
+        el("div", { class: "flow-num" }, String(idx+1)),
+        el("div", null, [ el("b", null, n.title), document.createTextNode(" — " + n.flowDesc) ])
+      ]));
+      if (idx < scene.nodes.length - 1) flow.appendChild(el("div", { class: "flow-arrow" }, "▼"));
+    });
+    flow.classList.add("show");
+
     if (correct) {
-      solved = true;
-      const score = attempts === 1 ? 2 : 1;
       nodeEls.forEach(nd => nd.classList.add("correct-seq"));
-      // show flow
-      flow.innerHTML = "";
-      scene.nodes.forEach((n, idx) => {
-        flow.appendChild(el("div", { class: "flow-step" }, [
-          el("div", { class: "flow-num" }, String(idx+1)),
-          el("div", null, [ el("b", null, n.title), document.createTextNode(" — " + n.flowDesc) ])
-        ]));
-        if (idx < scene.nodes.length - 1) flow.appendChild(el("div", { class: "flow-arrow" }, "▼"));
-      });
-      flow.classList.add("show");
       result.className = "consequence show good";
-      result.innerHTML = "<h4>Correct flow" + (attempts === 1 ? " — first try!" : "") + "</h4><p>" + scene.explanation + "</p>";
-      record(scene.id, "sequence", score, 2, { attempts });
-      if (scene.onComplete) scene.onComplete(score);
-      contBtn.disabled = false;
-      contBtn.onclick = () => goScene(routeAfterLab(scene, score));
+      result.innerHTML = "<h4>Correct — first try!</h4><p>" + scene.explanation + "</p>";
+      record(scene.id, "sequence", 2, 2, { attempts });
+      if (scene.onComplete) scene.onComplete(2);
+      contBtn.onclick = () => goScene(routeAfterLab(scene, 2));
     } else {
-      // mark wrong, allow retry
-      result.className = "consequence show bad";
-      result.innerHTML = "<h4>Not quite</h4><p>That ordering isn't right. " + scene.retryHint + " Click <b>Reset Order</b> and try again.</p>";
       picks.forEach((origIdx, pos) => { if (origIdx !== pos) nodeEls[origIdx].classList.add("wrong-seq"); });
-      // if 2nd failed attempt, allow proceed via fail route
-      if (attempts >= 2 && !solved) {
-        record(scene.id, "sequence", 0, 2, { attempts });
-        if (scene.onComplete) scene.onComplete(0);
-        contBtn.disabled = false;
-        contBtn.onclick = () => goScene(scene.failNext || scene.passNext);
-        result.innerHTML += "<p style='margin-top:0.5rem;'>You can continue — the correct flow will be explained next.</p>";
-      }
+      result.className = "consequence show bad";
+      result.innerHTML = "<h4>Incorrect order — here is the correct flow</h4><p>" + scene.explanation + "</p>";
+      record(scene.id, "sequence", 0, 2, { attempts });
+      if (scene.onComplete) scene.onComplete(0);
+      contBtn.onclick = () => goScene(scene.failNext || scene.passNext);
     }
+    contBtn.disabled = false;
   }
 
   mount.appendChild(sceneCard(scene, [pool, flow, result, btnRow]));
@@ -1183,6 +1314,7 @@ SCENES.S2 = {
       verdict: "bad",
       feedback: "Rolling your own auth is how breaches like this happen. It's slow, expensive, and you'd be hand-rolling crypto under deadline. Use proven, standards-based AAA." }
   ],
+  hint: "Think about what Meridian already runs. The strongest option reuses existing infrastructure and doesn't create a new credential silo outside your control.",
   bestNote: "Deploy RADIUS integrated with Active Directory — centralized AAA that reuses your existing identity store.",
   routeByVerdict: (verdict) => verdict === "good" ? "T3" : "S2_fail"
 };
@@ -1210,6 +1342,7 @@ const radiusTemplate = (prefill) => [
       : "<p>RADIUS is installed. Before any access point can talk to it, the server has to know which devices are allowed to send it authentication requests. You open <code>/etc/freeradius/3.0/clients.conf</code> to define your wireless controllers as RADIUS clients.</p>" +
         "<p>The deployment runbook says the campus AP management subnet is <b>10.0.0.0/8</b>, the shared secret on the controllers is <b>MeridianSecret2024</b>, and the device type is Cisco.</p>",
     fileLabel: "/etc/freeradius/3.0/clients.conf",
+    hint: "The runbook gives you all four values. Match each field to its purpose: which one is a network range, which is the shared password, which is just a label, and which is the vendor type?",
     prefill: prefill,
     blanks: [
       { label: "ipaddr (NAS subnet)", prefill: "10.0.0.0/8",
@@ -1316,6 +1449,7 @@ SCENES.T5 = {
     { ts: "09:31:40", level: "AUTH", source: "AP 10.0.4.13", msg: "EAP-TLS auth OK user=mchen vlan=20" },
     { ts: "09:34:22", level: "INFO", source: "AP 10.0.4.11", msg: "channel utilization 18%" }
   ],
+  hint: "Your managed access points all share the same network range. Look for a source IP that doesn't belong — and check whether it's using the same EAP method as all the others.",
   explanation: "The two flagged rows come from <b>192.168.50.77</b> — an IP outside your managed 10.0.x.x range, so it is not one of your APs. Worse, it accepts <b>EAP-PEAP / MSCHAPv2</b>, which transmits the user's credential to the AP instead of using a client certificate (EAP-TLS). That is the signature of an <b>evil twin</b> harvesting passwords. The legitimate APs only ever do EAP-TLS.",
   onComplete: (score) => { if (score >= 1) gameState.evilTwinCaught = true; },
   passNext: "T6", failNext: "T5_miss"
@@ -1389,6 +1523,7 @@ SCENES.S7 = {
       verdict: "partial",
       feedback: "A firewall block helps, but the rogue AP is a wireless device harvesting credentials over the air before any traffic reaches your firewall — and you still haven't dealt with Marcus's stolen credential or the root cause." }
   ],
+  hint: "You have three distinct problems: a stolen credential, an active device still harvesting, and a design flaw that made the attack possible. The best response addresses all three — not just one.",
   bestNote: "Reset the compromised account, physically remove the rogue AP, and migrate to EAP-TLS so there's no harvestable password.",
   next: "T8"
 };
@@ -1406,7 +1541,7 @@ SCENES.T8 = {
     { title: "Authentication Server", desc: "RADIUS / NPS", flowDesc: "RADIUS validates the credential or certificate and decides accept/reject." },
     { title: "Identity Store", desc: "Active Directory", flowDesc: "AD confirms the account and returns group membership and VLAN attributes." }
   ],
-  retryHint: "Think about the journey: the device asks, the AP relays, RADIUS decides, and it checks the directory.",
+  hint: "Think about the journey: it starts at the device asking for access and ends at the store that holds the account. One component in the middle relays traffic but never makes the final decision.",
   explanation: "802.1X separates the roles: the <b>supplicant</b> (laptop) speaks EAP to the <b>authenticator</b> (AP), which forwards it to the <b>authentication server</b> (RADIUS/NPS). RADIUS validates against the <b>identity store</b> (Active Directory), which returns authorization attributes like VLAN assignment. The authenticator only opens the port once RADIUS says yes.",
   passNext: "T9", failNext: "T8_explain"
 };
@@ -1487,6 +1622,7 @@ const npsTemplate = () => ({
   subtitle: "Module 13.2 • RADIUS authorization attributes",
   narrative: "<p>The nursing program runs clinical simulation software that only lives on a segmented VLAN. You write a Windows NPS network policy that matches the nursing group and returns the VLAN assignment via RADIUS tunnel attributes.</p>" +
     "<p>The clinical VLAN is <b>30</b>. The matching AD group is <b>MERIDIAN\\Nursing-Clinical</b>. VLAN assignment uses the standard 802.1X tunnel attributes.</p>",
+  hint: "VLAN assignment over RADIUS uses three attributes from RFC 2868. One names the tunnel type, one names the medium, and one is the actual VLAN number. The field names in the policy template hint at what each expects.",
   fileLabel: "NPS Network Policy — Nursing-Clinical (export)",
   blanks: [
     { label: "Windows-Groups condition",
@@ -1564,6 +1700,7 @@ SCENES.S11 = {
   title: "S11 — Triage the SIEM Alert Queue",
   subtitle: "Module 13.2 • Alert classification",
   narrative: "<p>With auth hardened, you take a rotation on the SIEM console. Six alerts are waiting. Classify each one: a <b>Real Threat</b> needs immediate action, a <b>False Positive</b> is benign, and <b>Investigate</b> means it warrants a closer look but isn't clearly malicious. One of these is hiding something serious — read carefully.</p>",
+  hint: "Most of these are operational noise. But one alert describes a change to infrastructure that controls what gets trusted — not an attack on users, but something that could let an attacker be trusted as something they're not.",
   alerts: [
     { sev: "HIGH", source: "src=185.220.101.47", msg: "47 failed login attempts against multiple accounts from a single external IP in 90 seconds.",
       answer: "threat",
@@ -1645,6 +1782,7 @@ SCENES.S13 = {
       verdict: "partial",
       feedback: "Technically accurate but pitched completely wrong for a non-technical board — they'll glaze over and miss the point. Match the explanation to the audience." }
   ],
+  hint: "The board needs purpose, not protocol. Try framing each layer as answering a different question — and explain how they reinforce each other rather than just naming them.",
   bestNote: "Frame it as layers: PKI proves identity (no password to steal), RADIUS makes the access decision against AD, MFA adds a second factor.",
   next: "T14"
 };
@@ -1702,6 +1840,7 @@ SCENES.S15 = {
       verdict: "bad",
       feedback: "Ignoring 12 unmanaged APs on shared WPA2 next to clinical data is exactly how the next breach starts. Unmanaged, unmonitored infrastructure is a standing liability regardless of who set it up." }
   ],
+  hint: "The staff built this because a real need wasn't being met. The option that meets that need securely is stronger than the one that just blocks or ignores it.",
   bestNote: "Bring the nursing center under managed 802.1X/EAP-TLS with central monitoring — solve the underlying need, don't just block it.",
   next: "END"
 };
@@ -1731,9 +1870,10 @@ function renderDebrief() {
   if (timerInterval) clearInterval(timerInterval);
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
 
-  // totals
-  let earned = 0, possible = 0;
-  Object.values(records).forEach(r => { earned += r.score; possible += r.maxScore; });
+  // totals — subtract hint penalty from earned
+  let rawEarned = 0, possible = 0;
+  Object.values(records).forEach(r => { rawEarned += r.score; possible += r.maxScore; });
+  const earned = Math.max(0, rawEarned - hintPenalty);
   const pct = possible ? Math.round((earned / possible) * 100) : 0;
   const grade = gradeFromPct(pct);
 
@@ -1742,12 +1882,17 @@ function renderDebrief() {
 
   // header
   const header = el("div", { class: "card debrief-header" });
+  const hintLine = hintsUsed > 0
+    ? " &nbsp;•&nbsp; " + hintsUsed + " hint" + (hintsUsed > 1 ? "s" : "") + " used"
+      + (hintPenalty > 0 ? " <span style='color:var(--wrong)'>(" + hintPenalty + " paid, −" + hintPenalty + " pts)</span>" : " (all free)")
+    : " &nbsp;•&nbsp; No hints used";
   header.innerHTML =
-    "<div class='card-eyebrow'>Operation: Secure Semester — Debrief</div>" +
+    "<div class='card-eyebrow'>Professor Martin's Network Security Adventure — Debrief</div>" +
     "<h1>Mission Report</h1>" +
     "<p style='color:var(--text-muted)'>Operator: <b style='color:var(--text)'>" + esc(player.fullName) + "</b></p>" +
     "<div class='grade' style='color:" + grade.color + "'>" + grade.g + "</div>" +
-    "<p style='color:var(--text-muted)'>" + earned + " / " + possible + " points • " + pct + "%</p>";
+    "<p style='color:var(--text-muted)'>" + earned + " / " + possible + " points • " + pct + "%" + hintLine + "</p>" +
+    (hintPenalty > 0 ? "<p style='font-size:0.82rem;color:var(--text-dim);margin-top:0.25rem'>Raw score: " + rawEarned + " pts — hint penalty: −" + hintPenalty + " pt" + (hintPenalty > 1 ? "s" : "") + "</p>" : "");
   mount.appendChild(header);
 
   // stat grid
