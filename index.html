@@ -380,6 +380,26 @@
   /* HUD hint counter */
   #hudHints { color: var(--warn); }
   #hudHints.depleted { color: var(--wrong); }
+
+  /* ── Skip modal ── */
+  #skip-modal {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.72); z-index: 9999;
+    align-items: center; justify-content: center; padding: 1rem;
+  }
+  #skip-modal.open { display: flex; }
+  .skip-modal-box {
+    background: var(--surface); border: 1px solid var(--danger);
+    border-radius: var(--radius); max-width: 480px; width: 100%; padding: 1.8rem 2rem;
+  }
+  .skip-modal-box h3 { font-size: 1.1rem; margin-bottom: 0.75rem; }
+  .skip-modal-box p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem; line-height: 1.5; }
+  #skip-score-line { font-weight: 600; }
+  .btn.skip {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-muted); font-size: 0.88rem;
+  }
+  .btn.skip:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
 </style>
 </head>
 <body>
@@ -400,7 +420,7 @@
       <div class="rule-card warn-card">
         <div class="rule-icon">🔒</div>
         <strong>Answers Are Final</strong>
-        <p>Once you submit a decision, run a terminal task, or classify an alert, it is locked. There is no going back. Think before you act.</p>
+        <p>Once you submit a decision, run a terminal task, or classify an alert, it is locked. You may use the Skip button to bypass a scene, but skipping forfeits unearned points. Think before you act.</p>
       </div>
       <div class="rule-card">
         <div class="rule-icon">💡</div>
@@ -496,6 +516,21 @@
 <!-- ════════════════ DEBRIEF SCREEN ════════════════ -->
 <div id="screen-debrief" class="screen">
   <div class="container" id="debriefMount"></div>
+</div>
+
+<!-- ════════════════ SKIP MODAL ════════════════ -->
+<div id="skip-modal">
+  <div class="skip-modal-box">
+    <div class="card-eyebrow" style="color:var(--danger)">⚠ Skip Scene</div>
+    <h3>Are you sure you want to skip?</h3>
+    <p id="skip-earned-msg"></p>
+    <p id="skip-score-line"></p>
+    <p style="color:var(--text-dim);font-size:0.82rem;margin-top:0.5rem;">Skipped scenes are recorded in your debrief report. You cannot come back to this scene.</p>
+    <div class="btn-row" style="margin-top:1.2rem;">
+      <button class="btn secondary" onclick="closeSkipModal()">Keep Working</button>
+      <button class="btn danger" id="skip-confirm-btn">Skip Scene →</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -633,6 +668,32 @@ function useHint(text, sceneId) {
   if (btn) btn.disabled = true;
 }
 
+/* ── Skip modal ── */
+let _skipOnConfirm = null;
+
+function openSkipModal({ partialScore, maxScore, earnedMsg, onConfirm }) {
+  _skipOnConfirm = onConfirm;
+  document.getElementById("skip-earned-msg").textContent = earnedMsg;
+  const scoreLine = document.getElementById("skip-score-line");
+  if (partialScore > 0) {
+    scoreLine.textContent = "Partial credit: you will receive " + partialScore + " / " + maxScore + " point(s).";
+    scoreLine.style.color = "var(--partial)";
+  } else {
+    scoreLine.textContent = "No credit — you will receive 0 / " + maxScore + " points for this scene.";
+    scoreLine.style.color = "var(--wrong)";
+  }
+  document.getElementById("skip-modal").classList.add("open");
+}
+
+function closeSkipModal() {
+  document.getElementById("skip-modal").classList.remove("open");
+  _skipOnConfirm = null;
+}
+
+document.getElementById("skip-confirm-btn").addEventListener("click", () => {
+  if (_skipOnConfirm) { const fn = _skipOnConfirm; closeSkipModal(); fn(); }
+});
+
 function updateHud(sceneId) {
   const idx = MAIN_SCENES.indexOf(sceneId);
   if (idx >= 0) {
@@ -708,11 +769,32 @@ function renderNarrative(scene, mount) {
 function renderDecision(scene, mount) {
   const optWrap = el("div");
   const conseq = el("div", { class: "consequence" });
-  const btnRow = el("div", { class: "btn-row" });
+  const skipBtn = el("button", { class: "btn skip" }, "Skip Scene");
   const contBtn = el("button", { class: "btn", disabled: "true" }, "Continue →");
+  const btnRow = el("div", { class: "btn-row spread" });
+  btnRow.appendChild(skipBtn);
   btnRow.appendChild(contBtn);
 
   let answered = false;
+
+  skipBtn.onclick = () => {
+    if (answered) return;
+    openSkipModal({
+      partialScore: 0,
+      maxScore: 2,
+      earnedMsg: "No answer selected — skipping gives 0 / 2 points for this scene.",
+      onConfirm: () => {
+        answered = true;
+        decisionCount++;
+        record(scene.id, "decision", 0, 2, { choice: "—", choiceText: "(skipped)", verdict: "skip" });
+        let next;
+        if (scene.routeByVerdict) next = scene.routeByVerdict("bad", {});
+        else next = typeof scene.next === "function" ? scene.next() : scene.next;
+        goScene(next);
+      }
+    });
+  };
+
   scene.options.forEach((opt, i) => {
     const key = String.fromCharCode(65 + i);
     const b = el("button", { class: "option" }, [
@@ -722,6 +804,7 @@ function renderDecision(scene, mount) {
     b.addEventListener("click", () => {
       if (answered) return;
       answered = true;
+      skipBtn.disabled = true;
       decisionCount++;
       const verdict = opt.verdict; // "good" | "partial" | "bad"
       const score = verdict === "good" ? 2 : verdict === "partial" ? 1 : 0;
@@ -796,8 +879,10 @@ function renderTerminal(scene, mount) {
 
   const hintBox = el("div", { class: "hint-box" }, "Hint: " + (scene.hint || "Try 'help' or 'ls' to see what's available, then inspect files with 'cat <file>'."));
 
-  const btnRow = el("div", { class: "btn-row" });
+  const skipBtn = el("button", { class: "btn skip" }, "Skip Scene");
   const contBtn = el("button", { class: "btn", disabled: "true" }, "Continue →");
+  const btnRow = el("div", { class: "btn-row spread" });
+  btnRow.appendChild(skipBtn);
   btnRow.appendChild(contBtn);
 
   mount.appendChild(sceneCard(scene, [win, tracker, hintBox, btnRow]));
@@ -916,7 +1001,24 @@ function renderTerminal(scene, mount) {
   win.addEventListener("click", () => input.focus());
   setTimeout(() => input.focus(), 50);
 
+  skipBtn.onclick = () => {
+    const foundCount = Object.keys(found).length;
+    openSkipModal({
+      partialScore: foundCount,
+      maxScore: totalKey,
+      earnedMsg: "You have discovered " + foundCount + " of " + totalKey + " key commands so far.",
+      onConfirm: () => {
+        skipBtn.disabled = true;
+        input.disabled = true;
+        if (scene.onComplete) scene.onComplete(scoreTotal, found);
+        record(scene.id, "terminal", foundCount, totalKey, { score: scoreTotal, ranKey: Object.keys(found), skipped: true });
+        goScene(routeAfterLab(scene, scoreTotal));
+      }
+    });
+  };
+
   contBtn.onclick = () => {
+    skipBtn.disabled = true;
     if (scene.onComplete) scene.onComplete(scoreTotal, found);
     record(scene.id, "terminal", Object.keys(found).length, totalKey, {
       score: scoreTotal, ranKey: Object.keys(found)
@@ -954,13 +1056,42 @@ function renderConfig(scene, mount) {
   ]);
 
   const feedback = el("div", { class: "blank-feedback" });
-  const btnRow = el("div", { class: "btn-row" });
+  const skipBtn = el("button", { class: "btn skip" }, "Skip Scene");
   const applyBtn = el("button", { class: "btn secondary" }, "Apply Configuration");
   const contBtn = el("button", { class: "btn", disabled: "true" }, "Continue →");
-  btnRow.appendChild(applyBtn);
-  btnRow.appendChild(contBtn);
+  const btnRight = el("div", { style: "display:flex;gap:0.8rem;" });
+  btnRight.appendChild(applyBtn);
+  btnRight.appendChild(contBtn);
+  const btnRow = el("div", { class: "btn-row spread" });
+  btnRow.appendChild(skipBtn);
+  btnRow.appendChild(btnRight);
 
   mount.appendChild(sceneCard(scene, [win, feedback, btnRow]));
+
+  skipBtn.onclick = () => {
+    const correctNow = scene.blanks.reduce((acc, b, i) => acc + (inputs[i] && b.validate(inputs[i].value.trim()) ? 1 : 0), 0);
+    const totalBlanks = scene.blanks.length;
+    openSkipModal({
+      partialScore: correctNow,
+      maxScore: totalBlanks,
+      earnedMsg: "You have " + correctNow + " of " + totalBlanks + " blanks filled in correctly.",
+      onConfirm: () => {
+        skipBtn.disabled = true;
+        const allOk = correctNow === totalBlanks;
+        const score = allOk ? 2 : (correctNow >= totalBlanks - 1 ? 1 : 0);
+        if (scene.onComplete) scene.onComplete(score, allOk);
+        record(scene.id, "config", correctNow, totalBlanks, {
+          correctCount: correctNow, total: totalBlanks, allOk,
+          values: scene.blanks.map((b,i) => ({ label: b.label, value: inputs[i].value.trim(), ok: b.validate(inputs[i].value.trim()) })),
+          skipped: true
+        });
+        let next;
+        if (scene.routeByPass) next = scene.routeByPass(allOk, score);
+        else next = allOk ? scene.passNext : (scene.failNext || scene.passNext);
+        goScene(next);
+      }
+    });
+  };
 
   let attempts = 0;
 
@@ -989,6 +1120,7 @@ function renderConfig(scene, mount) {
   });
 
   contBtn.onclick = () => {
+    skipBtn.disabled = true;
     const correctCount = scene.blanks.reduce((acc, b, i) => acc + (b.validate(inputs[i].value.trim()) ? 1 : 0), 0);
     const allOk = correctCount === scene.blanks.length;
     const score = allOk ? 2 : (correctCount >= scene.blanks.length - 1 ? 1 : 0);
@@ -1048,19 +1180,48 @@ function renderLogviewer(scene, mount) {
     });
   });
 
-  const btnRow = el("div", { class: "btn-row" });
+  const suspIdx = scene.entries.map((e,i) => e.suspicious ? i : -1).filter(i => i >= 0);
+
+  const skipBtn = el("button", { class: "btn skip" }, "Skip Scene");
   const submitBtn = el("button", { class: "btn secondary" }, "Submit Flags for Review");
   const contBtn = el("button", { class: "btn", disabled: "true" }, "Continue →");
-  btnRow.appendChild(submitBtn);
-  btnRow.appendChild(contBtn);
+  const btnRight = el("div", { style: "display:flex;gap:0.8rem;" });
+  btnRight.appendChild(submitBtn);
+  btnRight.appendChild(contBtn);
+  const btnRow = el("div", { class: "btn-row spread" });
+  btnRow.appendChild(skipBtn);
+  btnRow.appendChild(btnRight);
 
   const result = el("div", { class: "consequence" });
 
   mount.appendChild(sceneCard(scene, [controls, wrap, result, btnRow]));
 
-  const suspIdx = scene.entries.map((e,i) => e.suspicious ? i : -1).filter(i => i >= 0);
+  let logSubmitted = false;
+  skipBtn.onclick = () => {
+    if (logSubmitted) return;
+    const correctNow = suspIdx.filter(i => flagged.has(i)).length;
+    const totalSusp = suspIdx.length;
+    const falsePosNow = [...flagged].filter(i => !scene.entries[i].suspicious).length;
+    let partialScore = correctNow >= 2 ? 2 : correctNow === 1 ? 1 : 0;
+    if (falsePosNow > 2) partialScore = Math.max(0, partialScore - 1);
+    openSkipModal({
+      partialScore,
+      maxScore: 2,
+      earnedMsg: "You have flagged " + flagged.size + " entries — " + correctNow + " of " + totalSusp + " suspicious entries identified" +
+        (falsePosNow > 0 ? ", " + falsePosNow + " false positive(s)" : "") + ".",
+      onConfirm: () => {
+        logSubmitted = true;
+        skipBtn.disabled = true;
+        record(scene.id, "logviewer", partialScore, 2, { correctFlags: correctNow, total: totalSusp, falsePos: falsePosNow, skipped: true });
+        if (scene.onComplete) scene.onComplete(partialScore);
+        goScene(routeAfterLab(scene, partialScore));
+      }
+    });
+  };
 
   submitBtn.addEventListener("click", () => {
+    logSubmitted = true;
+    skipBtn.disabled = true;
     let correctFlags = 0, falsePos = 0;
     suspIdx.forEach(i => { if (flagged.has(i)) correctFlags++; });
     flagged.forEach(i => { if (!scene.entries[i].suspicious) falsePos++; });
@@ -1124,15 +1285,35 @@ function renderSequence(scene, mount) {
     pool.appendChild(node);
   });
 
-  const btnRow = el("div", { class: "btn-row" });
+  const skipBtn = el("button", { class: "btn skip" }, "Skip Scene");
   const contBtn = el("button", { class: "btn", disabled: "true" }, "Continue →");
+  const btnRow = el("div", { class: "btn-row spread" });
+  btnRow.appendChild(skipBtn);
   btnRow.appendChild(contBtn);
+
+  skipBtn.onclick = () => {
+    if (solved) return;
+    openSkipModal({
+      partialScore: 0,
+      maxScore: 2,
+      earnedMsg: "Sequence not completed — skipping gives 0 / 2 points for this scene.",
+      onConfirm: () => {
+        solved = true;
+        nodeEls.forEach(nd => nd && (nd.style.pointerEvents = "none"));
+        skipBtn.disabled = true;
+        record(scene.id, "sequence", 0, 2, { attempts: 0, skipped: true });
+        if (scene.onComplete) scene.onComplete(0);
+        goScene(scene.failNext || scene.passNext);
+      }
+    });
+  };
 
   function checkOrder() {
     attempts++;
     // Lock all nodes immediately — no retry
     nodeEls.forEach(nd => nd.style.pointerEvents = "none");
     solved = true;
+    skipBtn.disabled = true;
 
     const correct = picks.every((origIdx, pos) => origIdx === pos);
     // Always show the correct flow diagram
@@ -1215,19 +1396,43 @@ function renderTriage(scene, mount) {
 
   function labelFor(k) { return btnDefs.find(b => b.key === k).label; }
 
-  const btnRow = el("div", { class: "btn-row" });
+  const skipBtn = el("button", { class: "btn skip" }, "Skip Scene");
   const contBtn = el("button", { class: "btn", disabled: "true" }, "Continue →");
+  const btnRow = el("div", { class: "btn-row spread" });
+  btnRow.appendChild(skipBtn);
   btnRow.appendChild(contBtn);
+
+  skipBtn.onclick = () => {
+    const classifiedCount = Object.keys(choices).length;
+    const correctSoFar = scene.alerts.filter((a,i) => choices[i] === a.answer).length;
+    const rogueIdx2 = scene.alerts.findIndex(a => a.critical);
+    const rogueRight2 = rogueIdx2 >= 0 && choices[rogueIdx2] === scene.alerts[rogueIdx2].answer;
+    const partialScore = rogueRight2 ? 2 : Math.min(2, correctSoFar);
+    openSkipModal({
+      partialScore,
+      maxScore: 2,
+      earnedMsg: "You have classified " + classifiedCount + " of " + scene.alerts.length + " alerts (" + correctSoFar + " correctly).",
+      onConfirm: () => {
+        skipBtn.disabled = true;
+        const perAlert = scene.alerts.map((a,i) => ({ msg: a.msg, chosen: choices[i] || "(skipped)", correct: choices[i] === a.answer }));
+        if (scene.onComplete) scene.onComplete(partialScore, rogueRight2);
+        record(scene.id, "triage", correctSoFar, scene.alerts.length, { perAlert, rogueRight: rogueRight2, score: partialScore, skipped: true });
+        goScene(scene.passNext);
+      }
+    });
+  };
 
   function checkDone() {
     if (Object.keys(choices).length === scene.alerts.length) {
       contBtn.disabled = false;
+      skipBtn.disabled = true;
     }
   }
 
   mount.appendChild(sceneCard(scene, [cardsWrap, btnRow]));
 
   contBtn.onclick = () => {
+    skipBtn.disabled = true;
     let correct = 0;
     const rogueIdx = scene.alerts.findIndex(a => a.critical);
     const rogueRight = choices[rogueIdx] === scene.alerts[rogueIdx].answer;
@@ -1954,17 +2159,23 @@ function renderDebrief() {
     const r = records[id];
     let result = "";
     if (r.type === "terminal") {
-      result = "Commands run: " + (r.detail.ranKey ? r.detail.ranKey.length : r.score) + "/" + r.maxScore + " key commands";
+      result = "Commands run: " + (r.detail.ranKey ? r.detail.ranKey.length : r.score) + "/" + r.maxScore + " key commands" +
+        (r.detail.skipped ? " (skipped)" : "");
     } else if (r.type === "config") {
-      result = r.detail.correctCount + "/" + r.detail.total + " blanks correct" + (r.detail.allOk ? "" : " (some incorrect)");
+      result = r.detail.correctCount + "/" + r.detail.total + " blanks correct" +
+        (r.detail.skipped ? " (skipped)" : r.detail.allOk ? "" : " (some incorrect)");
     } else if (r.type === "decision") {
-      result = "Chose " + r.detail.choice + " — " + (r.detail.verdict === "good" ? "best answer" : r.detail.verdict === "partial" ? "partial" : "incorrect");
+      result = r.detail.verdict === "skip" ? "Skipped — no answer given" :
+        "Chose " + r.detail.choice + " — " + (r.detail.verdict === "good" ? "best answer" : r.detail.verdict === "partial" ? "partial" : "incorrect");
     } else if (r.type === "triage") {
-      result = r.detail.perAlert.filter(a => a.correct).length + "/" + r.maxScore + " classified correctly" + (r.detail.rogueRight ? " (caught the rogue CA)" : " (missed the rogue CA)");
+      result = r.detail.perAlert.filter(a => a.correct).length + "/" + r.maxScore + " classified correctly" +
+        (r.detail.skipped ? " (skipped)" : r.detail.rogueRight ? " (caught the rogue CA)" : " (missed the rogue CA)");
     } else if (r.type === "logviewer") {
-      result = r.detail.correctFlags + "/" + r.detail.total + " rogue entries flagged" + (r.detail.falsePos ? ", " + r.detail.falsePos + " false positive(s)" : "");
+      result = r.detail.correctFlags + "/" + r.detail.total + " rogue entries flagged" +
+        (r.detail.skipped ? " (skipped)" : r.detail.falsePos ? ", " + r.detail.falsePos + " false positive(s)" : "");
     } else if (r.type === "sequence") {
-      result = r.score >= 1 ? ("Ordered correctly in " + r.detail.attempts + " attempt(s)") : "Did not solve";
+      result = r.detail.skipped ? "Skipped — sequence not attempted" :
+        (r.score >= 1 ? "Ordered correctly in " + r.detail.attempts + " attempt(s)" : "Did not solve");
     }
     const row = el("tr");
     row.innerHTML = "<td><b>" + id + "</b><br><span style='color:var(--text-muted);font-size:0.78rem'>" + (sceneTitles[id]||"") + "</span></td>" +
